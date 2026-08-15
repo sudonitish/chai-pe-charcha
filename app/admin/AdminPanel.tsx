@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   Plus, Trash2, LogOut, ArrowLeft, User, KeyRound, Users,
-  UserCircle, Ban, CheckCircle2, Coffee, Briefcase, Archive, Activity, Database, Pencil,
+  UserCircle, Ban, CheckCircle2, Coffee, Briefcase, Archive, Activity, Database, Pencil, RefreshCw,
 } from "lucide-react"
 import type { MemberStats } from "@/lib/debt"
 import { PIN_PATTERN, PIN_MAX_LENGTH, PIN_INVALID_MESSAGE } from "@/lib/pin"
@@ -64,6 +64,9 @@ export function AdminPanel({ stats }: { stats: MemberStats[] }) {
   const [archiveDate, setArchiveDate] = useState(safeCutoffStr)
   const [archiving, setArchiving] = useState(false)
   const [archiveResult, setArchiveResult] = useState("")
+
+  const [clearingCache, setClearingCache] = useState(false)
+  const [cacheCleared, setCacheCleared] = useState(false)
 
   const router = useRouter()
 
@@ -183,6 +186,20 @@ export function AdminPanel({ stats }: { stats: MemberStats[] }) {
     router.refresh()
   }
 
+  async function clearCache() {
+    setClearingCache(true)
+    await fetch("/api/admin/clear-cache", { method: "POST" })
+    setClearingCache(false)
+    setCacheCleared(true)
+    // Delay the refresh until after the confirmation has been visible for a
+    // moment — firing it immediately re-renders the page in the same tick
+    // and the "Cache cleared" text never gets a chance to actually show.
+    setTimeout(() => {
+      setCacheCleared(false)
+      router.refresh()
+    }, 1500)
+  }
+
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       <div className="max-w-4xl mx-auto px-4 pb-10">
@@ -195,10 +212,21 @@ export function AdminPanel({ stats }: { stats: MemberStats[] }) {
             </a>
             <span className="font-display text-lg" style={{ color: "var(--ink)" }}>Admin Panel</span>
           </div>
-          <button onClick={logout} className="flex items-center gap-1.5 text-xs font-semibold hover:opacity-70 transition-colors px-3 py-1.5 rounded-full" style={{ color: "var(--muted)", background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}>
-            <LogOut className="w-3.5 h-3.5" />
-            Log out
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={clearCache}
+              disabled={clearingCache}
+              className="flex items-center gap-1.5 text-xs font-semibold hover:opacity-70 transition-colors px-3 py-1.5 rounded-full disabled:opacity-50"
+              style={{ color: "var(--muted)", background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${clearingCache ? "animate-spin" : ""}`} />
+              {clearingCache ? "Clearing…" : cacheCleared ? "Cache cleared ✓" : "Clear cache"}
+            </button>
+            <button onClick={logout} className="flex items-center gap-1.5 text-xs font-semibold hover:opacity-70 transition-colors px-3 py-1.5 rounded-full" style={{ color: "var(--muted)", background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}>
+              <LogOut className="w-3.5 h-3.5" />
+              Log out
+            </button>
+          </div>
         </header>
 
         <div className="mb-4">
