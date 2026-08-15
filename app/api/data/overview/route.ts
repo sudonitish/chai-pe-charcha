@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       where: { madeAt: { gte: start, lt: end }, invalidatedAt: null },
       include: {
         maker: { select: { id: true, name: true } },
-        logger: { select: { name: true } },
+        logger: { select: { id: true, name: true } },
         drinks: { select: { memberId: true, member: { select: { name: true } } } },
       },
       orderBy: { madeAt: "asc" },

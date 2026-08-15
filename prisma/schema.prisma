@@ -37,10 +37,16 @@ model Session {
   taskType      String    @default("tea") @map("task_type")
   taskLabel     String?   @map("task_label")
   invalidatedAt DateTime? @map("invalidated_at")
+  // Editing an entry replaces it: the old row gets invalidated and a new row
+  // is created pointing back here via originalId. loggedById on the new row
+  // is whoever made the correction, so "edited by X" falls out for free.
+  originalId    String?   @map("original_id")
 
-  maker  Member  @relation("SessionMaker", fields: [madeById], references: [id])
-  logger Member  @relation("SessionLogger", fields: [loggedById], references: [id])
-  drinks Drink[]
+  maker    Member    @relation("SessionMaker", fields: [madeById], references: [id])
+  logger   Member    @relation("SessionLogger", fields: [loggedById], references: [id])
+  drinks   Drink[]
+  original Session?  @relation("EntryEdit", fields: [originalId], references: [id], onDelete: SetNull)
+  edits    Session[] @relation("EntryEdit")
 
   @@map("sessions")
   @@index([madeAt])

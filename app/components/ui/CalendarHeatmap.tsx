@@ -1,25 +1,36 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Clock, Coffee, Briefcase } from "lucide-react"
+import { Clock, Coffee, Briefcase, Pencil } from "lucide-react"
 import { avatarColor } from "./avatarColor"
+import { MakeTeaButton } from "../MakeTeaButton"
 
 type SessionRow = {
   id: string
   madeAt: string
+  makerId: string
   makerName: string
+  loggerId: string
   loggerName: string
+  drinkerIds: string[]
   drinkerNames: string[]
   taskType: string
   taskLabel: string | null
+  isEdited: boolean
 }
+
+type MemberOption = { id: string; name: string }
 
 function dayKey(d: Date) {
   const p = (n: number) => String(n).padStart(2, "0")
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
-export function CalendarHeatmap({ year, month, sessions }: { year: number; month: number; sessions: SessionRow[] }) {
+export function CalendarHeatmap({
+  year, month, sessions, members, meId,
+}: {
+  year: number; month: number; sessions: SessionRow[]; members: MemberOption[]; meId?: string
+}) {
   const today = new Date()
   const todayKey = dayKey(today)
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1
@@ -125,9 +136,10 @@ export function CalendarHeatmap({ year, month, sessions }: { year: number; month
           <div className={`space-y-2 board-scroll ${showFade ? "fade-scroll-y" : ""}`} style={showFade ? { maxHeight: 400, overflowY: "auto" } : undefined}>
             {displaySessions.map((s) => {
               const [bg, fg] = avatarColor(s.makerName)
-              const onBehalf = s.loggerName !== s.makerName
+              const onBehalf = s.loggerId !== s.makerId
               const isTea = s.taskType !== "other"
               const actionText = isTea ? "made tea" : `did: ${s.taskLabel || "a job"}`
+              const canEdit = meId === s.makerId || meId === s.loggerId
               return (
                 <div key={s.id} className="card rounded-xl px-4 py-3">
                   <div className="flex items-start gap-3">
@@ -141,7 +153,9 @@ export function CalendarHeatmap({ year, month, sessions }: { year: number; month
                       </p>
                       <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
                         {new Date(s.madeAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                        {" · logged by "}{onBehalf ? s.loggerName : "self"}
+                        {s.isEdited
+                          ? <> · edited by {s.loggerName}</>
+                          : onBehalf ? <> · logged by {s.loggerName}</> : <> · logged by self</>}
                       </p>
                       {s.drinkerNames.length > 0 && (
                         <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
@@ -152,6 +166,29 @@ export function CalendarHeatmap({ year, month, sessions }: { year: number; month
                     <span className="text-xs tabular font-medium px-2 py-1 rounded-full shrink-0" style={{ background: "var(--muted-bg)", color: "var(--muted)" }}>
                       {s.drinkerNames.length}
                     </span>
+                    {canEdit && meId && (
+                      <MakeTeaButton
+                        myId={meId}
+                        members={members}
+                        editing={{
+                          entryId: s.id,
+                          madeAt: s.madeAt,
+                          madeById: s.makerId,
+                          drinkerIds: s.drinkerIds,
+                          taskType: s.taskType,
+                          taskLabel: s.taskLabel,
+                        }}
+                        trigger={(onClick) => (
+                          <button
+                            onClick={onClick}
+                            className="flex items-center justify-center w-7 h-7 rounded-lg shrink-0"
+                            style={{ background: "var(--muted-bg)", color: "var(--muted)" }}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        )}
+                      />
+                    )}
                   </div>
                 </div>
               )

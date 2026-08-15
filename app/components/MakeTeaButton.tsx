@@ -4,13 +4,22 @@ import { useState, useTransition, useEffect } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { X, Check, Plus, CheckCircle2, Coffee, Briefcase } from "lucide-react"
 import confetti from "canvas-confetti"
-import { makeTea } from "@/app/actions"
+import { makeTea, editEntry } from "@/app/actions"
 import { DateTimePicker } from "./ui/DateTimePicker"
 import { avatarColor } from "./ui/avatarColor"
 import { cn } from "@/lib/utils"
 
 type Member = { id: string; name: string; role?: string }
 type TaskType = "tea" | "other"
+
+type EditingEntry = {
+  entryId: string
+  madeAt: string // ISO
+  madeById: string
+  drinkerIds: string[]
+  taskType: string
+  taskLabel: string | null
+}
 
 function pad(n: number) { return String(n).padStart(2, "0") }
 function todayYmd() {
@@ -21,9 +30,13 @@ function nowHm() {
   const d = new Date()
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
+function ymdOf(d: Date) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
+function hmOf(d: Date) { return `${pad(d.getHours())}:${pad(d.getMinutes())}` }
 
-export function MakeTeaButton({ isMyTurn, myName, myId, members }: {
-  isMyTurn: boolean; myName: string; myId: string; members: Member[]
+export function MakeTeaButton({ isMyTurn, myName, myId, members, editing, trigger }: {
+  isMyTurn?: boolean; myName?: string; myId: string; members: Member[]
+  editing?: EditingEntry
+  trigger?: (onClick: () => void) => React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const [taskType, setTaskType] = useState<TaskType>("tea")
@@ -51,12 +64,22 @@ export function MakeTeaButton({ isMyTurn, myName, myId, members }: {
   const beneficiaryVerb = isTea ? "drank" : "benefited"
 
   function handleOpen() {
-    setTaskType("tea")
-    setTaskLabel("")
-    setDate(todayYmd())
-    setTime(nowHm())
-    setMadeById(myId)
-    setDrinkerIds(new Set([myId]))
+    if (editing) {
+      const d = new Date(editing.madeAt)
+      setTaskType(editing.taskType === "other" ? "other" : "tea")
+      setTaskLabel(editing.taskLabel ?? "")
+      setDate(ymdOf(d))
+      setTime(hmOf(d))
+      setMadeById(editing.madeById)
+      setDrinkerIds(new Set(editing.drinkerIds))
+    } else {
+      setTaskType("tea")
+      setTaskLabel("")
+      setDate(todayYmd())
+      setTime(nowHm())
+      setMadeById(myId)
+      setDrinkerIds(new Set([myId]))
+    }
     setError("")
     setOpen(true)
   }
@@ -74,9 +97,13 @@ export function MakeTeaButton({ isMyTurn, myName, myId, members }: {
     startTransition(async () => {
       try {
         const iso = new Date(`${date}T${time || "00:00"}:00`).toISOString()
-        await makeTea(iso, madeById, Array.from(drinkerIds), taskType, taskLabel)
+        if (editing) {
+          await editEntry(editing.entryId, iso, madeById, Array.from(drinkerIds), taskType, taskLabel)
+        } else {
+          await makeTea(iso, madeById, Array.from(drinkerIds), taskType, taskLabel)
+        }
         setOpen(false)
-        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        if (!editing && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
           confetti({
             particleCount: 70,
             spread: 65,
@@ -96,12 +123,14 @@ export function MakeTeaButton({ isMyTurn, myName, myId, members }: {
 
   return (
     <>
-      <button
-        onClick={handleOpen}
-        className="btn-primary inline-flex items-center gap-1.5 pl-3 pr-4 py-2 rounded-full text-xs font-semibold shrink-0"
-      >
-        <Plus className="w-4 h-4" /> Log entry
-      </button>
+      {trigger ? trigger(handleOpen) : (
+        <button
+          onClick={handleOpen}
+          className="btn-primary inline-flex items-center gap-1.5 pl-3 pr-4 py-2 rounded-full text-xs font-semibold shrink-0"
+        >
+          <Plus className="w-4 h-4" /> Log entry
+        </button>
+      )}
 
       <AnimatePresence>
         {open && (
@@ -138,7 +167,7 @@ export function MakeTeaButton({ isMyTurn, myName, myId, members }: {
               <div className="px-5 pt-5 pb-8 text-sm">
                 {!isDesktop && <div className="w-10 h-1.5 rounded-full mx-auto mb-4" style={{ background: "var(--border)" }} />}
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-semibold" style={{ color: "var(--ink)" }}>Log an entry</span>
+                  <span className="font-semibold" style={{ color: "var(--ink)" }}>{editing ? "Edit entry" : "Log an entry"}</span>
                   <button onClick={() => setOpen(false)} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "var(--muted-bg)" }}>
                     <X className="w-3.5 h-3.5" style={{ color: "var(--muted)" }} />
                   </button>
@@ -258,7 +287,9 @@ export function MakeTeaButton({ isMyTurn, myName, myId, members }: {
                     disabled={isPending || !date || !madeById}
                     className="btn-primary w-full py-3 rounded-xl font-semibold text-sm"
                   >
-                    {isPending ? "Logging…" : `Log entry · ${drinkerIds.size} ${beneficiaryVerb}`}
+                    {isPending
+                      ? (editing ? "Saving…" : "Logging…")
+                      : editing ? "Save changes" : `Log entry · ${drinkerIds.size} ${beneficiaryVerb}`}
                   </button>
                 </div>
               </div>
@@ -283,7 +314,7 @@ export function MakeTeaButton({ isMyTurn, myName, myId, members }: {
             exit={{ opacity: 0, y: 8, x: "-50%" }}
           >
             <CheckCircle2 className="w-4 h-4" style={{ color: "var(--success)" }} />
-            <span className="text-sm font-semibold whitespace-nowrap">Entry logged</span>
+            <span className="text-sm font-semibold whitespace-nowrap">{editing ? "Entry updated" : "Entry logged"}</span>
           </motion.div>
         )}
       </AnimatePresence>

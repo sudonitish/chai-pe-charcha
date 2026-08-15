@@ -19,8 +19,8 @@ export default async function OverviewPage({
   const month = parseInt(params.month ?? String(now.getMonth() + 1))
 
   type OverviewSession = {
-    id: string; madeById: string; madeAt: string; taskType: string; taskLabel: string | null
-    maker: { id: string; name: string }; logger: { name: string }
+    id: string; madeById: string; madeAt: string; taskType: string; taskLabel: string | null; originalId: string | null
+    maker: { id: string; name: string }; logger: { id: string; name: string }
     drinks: { memberId: string; member: { name: string } }[]
   }
   type OverviewMember = { id: string; name: string; role: string }
@@ -151,14 +151,20 @@ export default async function OverviewPage({
         <CalendarHeatmap
           year={year}
           month={month}
+          meId={me?.id}
+          members={members.map((m) => ({ id: m.id, name: m.name }))}
           sessions={sessions.map((s) => ({
             id: s.id,
             madeAt: s.madeAt,
+            makerId: s.maker.id,
             makerName: s.maker.name,
+            loggerId: s.logger.id,
             loggerName: s.logger.name,
+            drinkerIds: s.drinks.map((d) => d.memberId),
             drinkerNames: s.drinks.map((d) => d.member.name),
             taskType: s.taskType,
             taskLabel: s.taskLabel,
+            isEdited: s.originalId !== null,
           }))}
         />
       </div>
