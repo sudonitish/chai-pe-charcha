@@ -1,0 +1,99 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum MemberRole {
+  RESIDENT
+  GUEST
+}
+
+model Member {
+  id         String     @id @default(cuid())
+  name       String
+  pin        String?
+  role       MemberRole @default(RESIDENT)
+  joinedAt   DateTime   @default(now()) @map("joined_at")
+  // Durable, independent of Session rows — archiving old sessions must never
+  // erase this, or the rotation's tie-break logic silently corrupts.
+  lastMadeAt DateTime?  @map("last_made_at")
+
+  sessionsMade   Session[]        @relation("SessionMaker")
+  sessionsLogged Session[]        @relation("SessionLogger")
+  drinks         Drink[]
+  adjustments    DebtAdjustment[]
+
+  @@map("members")
+}
+
+model Session {
+  id            String    @id @default(cuid())
+  madeById      String    @map("made_by_id")
+  loggedById    String    @map("logged_by_id")
+  madeAt        DateTime  @map("made_at")
+  taskType      String    @default("tea") @map("task_type")
+  taskLabel     String?   @map("task_label")
+  invalidatedAt DateTime? @map("invalidated_at")
+
+  maker  Member  @relation("SessionMaker", fields: [madeById], references: [id])
+  logger Member  @relation("SessionLogger", fields: [loggedById], references: [id])
+  drinks Drink[]
+
+  @@map("sessions")
+  @@index([madeAt])
+  @@index([madeById])
+}
+
+model Drink {
+  id        String   @id @default(cuid())
+  memberId  String   @map("member_id")
+  sessionId String   @map("session_id")
+  drankAt   DateTime @default(now()) @map("drank_at")
+
+  member  Member  @relation(fields: [memberId], references: [id])
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, sessionId])
+  @@map("drinks")
+}
+
+// A manual correction to a member's debt count — used for admin "clear debt"
+// and for archiving old sessions (delta preserves the net debt those rows
+// contributed, so purging history never changes anyone's standing).
+model DebtAdjustment {
+  id        String   @id @default(cuid())
+  memberId  String   @map("member_id")
+  delta     Int
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("debt_adjustments")
+  @@index([memberId])
+}
+
+// Shared login-lockout tracker for both member PIN login and admin password
+// login. `identifier` is a memberId for members, or the fixed string "admin".
+model LoginAttempt {
+  id          String    @id @default(cuid())
+  identifier  String    @unique
+  failedCount Int       @default(0) @map("failed_count")
+  lockedUntil DateTime? @map("locked_until")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("login_attempts")
+}
+
+// General per-IP request throttle for the DB-hitting data routes — separate
+// from LoginAttempt, which only tracks failed auth. Fixed-window counter.
+model RateLimitBucket {
+  identifier  String   @id
+  windowStart DateTime @map("window_start")
+  count       Int      @default(0)
+
+  @@map("rate_limit_buckets")
+}
