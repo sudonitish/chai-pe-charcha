@@ -1,17 +1,12 @@
 "use client"
 
-import { Home, BarChart2, LogOut, LogIn } from "lucide-react"
+import { Home, BarChart2, LogIn } from "lucide-react"
 import { usePathname } from "next/navigation"
 
 type Me = { initials: string; bg: string; fg: string } | null
 
 export function BottomNav({ me }: { me: Me }) {
   const pathname = usePathname()
-
-  async function handleSignOut() {
-    await fetch("/api/auth/logout", { method: "POST" })
-    window.location.href = "/login"
-  }
 
   const linkStyle = (active: boolean) => ({ color: active ? "var(--accent-dark)" : "var(--muted)" })
 
@@ -30,14 +25,12 @@ export function BottomNav({ me }: { me: Me }) {
           <span className="text-[10px] font-semibold">Stats</span>
         </a>
         {me ? (
-          <button onClick={handleSignOut} className="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl">
+          <a href="/profile" className="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl" style={linkStyle(pathname === "/profile")}>
             <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: me.bg, color: me.fg }}>
               {me.initials}
             </div>
-            <span className="text-[10px] font-semibold flex items-center gap-0.5" style={{ color: "var(--muted)" }}>
-              <LogOut className="w-2.5 h-2.5" /> Out
-            </span>
-          </button>
+            <span className="text-[10px] font-semibold">Me</span>
+          </a>
         ) : (
           <a href="/login" className="flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl" style={{ color: "var(--accent-dark)" }}>
             <LogIn className="w-5 h-5" />
