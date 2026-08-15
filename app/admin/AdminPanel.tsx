@@ -7,7 +7,7 @@ import {
   UserCircle, Ban, CheckCircle2, Coffee, Briefcase, Archive, Activity, Database, Pencil,
 } from "lucide-react"
 import type { MemberStats } from "@/lib/debt"
-import { PIN_PATTERN, PIN_INVALID_MESSAGE } from "@/lib/pin"
+import { PIN_PATTERN, PIN_MAX_LENGTH, PIN_INVALID_MESSAGE } from "@/lib/pin"
 import { TextField } from "@/app/components/ui/Field"
 import { avatarColor } from "@/app/components/ui/avatarColor"
 
@@ -236,11 +236,10 @@ export function AdminPanel({ stats }: { stats: MemberStats[] }) {
               {!newIsGuest && (
                 <TextField
                   type="password"
-                  inputMode="numeric"
                   value={newPin}
                   onChange={e => setNewPin(e.target.value)}
                   placeholder="PIN (share with member)"
-                  maxLength={8}
+                  maxLength={PIN_MAX_LENGTH}
                   pattern={PIN_PATTERN}
                   title={PIN_INVALID_MESSAGE}
                   icon={<KeyRound className="w-4 h-4" />}
@@ -353,11 +352,10 @@ export function AdminPanel({ stats }: { stats: MemberStats[] }) {
                       <div className="flex items-center gap-2">
                         <TextField
                           type="password"
-                          inputMode="numeric"
                           value={promotePin}
                           onChange={e => setPromotePin(e.target.value)}
                           placeholder="Set a PIN for this resident"
-                          maxLength={8}
+                          maxLength={PIN_MAX_LENGTH}
                           pattern={PIN_PATTERN}
                           title={PIN_INVALID_MESSAGE}
                           icon={<KeyRound className="w-4 h-4" />}
@@ -383,11 +381,10 @@ export function AdminPanel({ stats }: { stats: MemberStats[] }) {
                         {!isGuest && (
                           <TextField
                             type="password"
-                            inputMode="numeric"
                             value={editPin}
                             onChange={e => setEditPin(e.target.value)}
                             placeholder="New PIN (optional)"
-                            maxLength={8}
+                            maxLength={PIN_MAX_LENGTH}
                             pattern={editPin ? PIN_PATTERN : undefined}
                             title={PIN_INVALID_MESSAGE}
                             icon={<KeyRound className="w-4 h-4" />}

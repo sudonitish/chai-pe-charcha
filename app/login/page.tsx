@@ -104,11 +104,10 @@ export default function LoginPage() {
                     </label>
                     <TextField
                       type="password"
-                      inputMode="numeric"
                       value={pin}
                       onChange={(e) => setPin(e.target.value)}
                       placeholder="Enter your PIN"
-                      maxLength={8}
+                      maxLength={20}
                       autoFocus
                       icon={<KeyRound className="w-4 h-4" />}
                       error={!!error}
