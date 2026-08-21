@@ -12,15 +12,16 @@ export async function POST(req: NextRequest) {
   const member = await prisma.member.findUnique({
     where: { id: memberId },
     include: {
-      sessionsMade: { where: { invalidatedAt: null }, select: { id: true } },
+      sessionsMade: { where: { invalidatedAt: null }, select: { _count: { select: { drinks: true } } } },
       drinks: { where: { session: { invalidatedAt: null } }, select: { id: true } },
       adjustments: { select: { delta: true } },
     },
   })
   if (!member) return NextResponse.json({ error: "Member not found" }, { status: 404 })
 
+  const cupsMade = member.sessionsMade.reduce((s, session) => s + session._count.drinks, 0)
   const currentDebt =
-    member.drinks.length - member.sessionsMade.length + member.adjustments.reduce((s, a) => s + a.delta, 0)
+    member.drinks.length - cupsMade + member.adjustments.reduce((s, a) => s + a.delta, 0)
 
   if (currentDebt === 0) return NextResponse.json({ ok: true, delta: 0 })
 

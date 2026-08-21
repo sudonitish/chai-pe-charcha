@@ -16,7 +16,7 @@ type RawMember = {
   joinedAt: Date
   role: string
   lastMadeAt: Date | null
-  sessionsMade: { madeAt: Date }[]
+  sessionsMade: { madeAt: Date; _count: { drinks: number } }[]
   drinks: { sessionId: string }[]
   adjustments?: { delta: number }[]
 }
@@ -24,20 +24,21 @@ type RawMember = {
 // The members-with-stats API route returns dates as JSON strings — this
 // restores Date instances so calculateDebts' comparisons work.
 export function parseMembersJson(raw: unknown[]): RawMember[] {
-  return (raw as Array<Omit<RawMember, "joinedAt" | "lastMadeAt" | "sessionsMade"> & { joinedAt: string; lastMadeAt: string | null; sessionsMade: { madeAt: string }[] }>).map((m) => ({
+  return (raw as Array<Omit<RawMember, "joinedAt" | "lastMadeAt" | "sessionsMade"> & { joinedAt: string; lastMadeAt: string | null; sessionsMade: { madeAt: string; _count: { drinks: number } }[] }>).map((m) => ({
     ...m,
     joinedAt: new Date(m.joinedAt),
     lastMadeAt: m.lastMadeAt ? new Date(m.lastMadeAt) : null,
-    sessionsMade: m.sessionsMade.map((s) => ({ madeAt: new Date(s.madeAt) })),
+    sessionsMade: m.sessionsMade.map((s) => ({ madeAt: new Date(s.madeAt), _count: s._count })),
   }))
 }
 
 export function calculateDebts(members: RawMember[]): MemberStats[] {
   const stats = members.map((m) => {
     const totalMakes = m.sessionsMade.length
+    const cupsMade = m.sessionsMade.reduce((sum, s) => sum + s._count.drinks, 0)
     const totalDrinks = m.drinks.length
     const adjustmentTotal = (m.adjustments ?? []).reduce((sum, a) => sum + a.delta, 0)
-    const debt = totalDrinks - totalMakes + adjustmentTotal
+    const debt = totalDrinks - cupsMade + adjustmentTotal
 
     // Durable field, not derived from sessionsMade — survives archiving old
     // session rows, so the rotation tie-break never gets corrupted by cleanup.

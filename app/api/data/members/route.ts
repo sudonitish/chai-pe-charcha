@@ -23,7 +23,10 @@ export async function GET() {
       lastMadeAt: true,
       // Explicit select, not include — this route has no auth check (by
       // design, it backs the public Home page), so `pin` must never appear here.
-      sessionsMade: { where: { invalidatedAt: null }, select: { madeAt: true } },
+      sessionsMade: {
+        where: { invalidatedAt: null },
+        select: { madeAt: true, _count: { select: { drinks: true } } },
+      },
       drinks: { where: { session: { invalidatedAt: null } }, select: { sessionId: true } },
       adjustments: { select: { delta: true } },
     },
